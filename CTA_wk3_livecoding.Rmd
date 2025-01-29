@@ -30,14 +30,26 @@ getwd()
 ## import the barbie and oppenheimer data from the Github repo
 use read.csv() command
 ```{r}
-
+barbie_posts <- read.csv("/Users/liuruisi/Desktop/ComputationalTextAnalysis_Week03/Barbie_Reddit_Posts - Barbie_Reddit_Posts.csv")
+oppenheimer_posts <- read.csv("/Users/liuruisi/Desktop/ComputationalTextAnalysis_Week03/Oppenheimer_Reddit_Posts - Oppenheimer_Reddit_Posts.csv")
 ```
 
 ## bind the different datasets
 ```{r}
 # create variable to identify the two datasets
+# take barbie dataset, create a new barbie dataset, and the initial dataset wouldn't have it
+barbie_posts <- barbie_posts %>%
+  mutate(movie = "barbie")
+View(barbie_posts)
 
+oppenheimer_posts <- oppenheimer_posts %>%
+  mutate(movie = "oppenheimer")
+View(oppenheimer_posts)
 # bind rows to make a single dataset
+barbie_oppenheimer_posts <- rbind(barbie_posts, oppenheimer_posts)
+
+# check the movie variable
+frequency(barbie_oppenheimer_posts$movie)
 
 # add row number variable
 
