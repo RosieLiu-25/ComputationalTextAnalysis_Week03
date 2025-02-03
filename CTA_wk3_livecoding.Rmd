@@ -14,6 +14,8 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(quanteda)
 library(readtext)
+install.packages("tm")
+library("tm")
 ```
 
 ## Data
@@ -50,9 +52,17 @@ barbie_oppenheimer_posts <- rbind(barbie_posts, oppenheimer_posts)
 
 # check the movie variable
 frequency(barbie_oppenheimer_posts$movie)
+table(barbie_oppenheimer_posts$movie)
+view(barbie_oppenheimer_posts)
 
 # add row number variable
-
+barbie_oppenheimer_posts <- barbie_oppenheimer_posts %>%
+  as.data.frame()
+barbie_oppenheimer_posts <- barbie_oppenheimer_posts %>%
+  mutate(row_number = row_number())
+barbie_oppenheimer_posts <- barbie_oppenheimer_posts %>%
+  select(row_number, everything())
+view(barbie_oppenheimer_posts)
 ```
 note: binding is a way of merging data (there are other ways)
 
@@ -62,12 +72,27 @@ note: binding is a way of merging data (there are other ways)
 ## corpus
 ```{r}
 #creating corpus
+barbie_oppenheimer_posts <- barbie_oppenheimer_posts %>%
+  mutate(Combined.Text = paste(Post.Title, Post.Text, sep = "-"))
+barbie_oppenheimer_posts <- barbie_oppenheimer_posts %>%
+  as.data.frame()
+corpus_bo <- corpus(barbie_oppenheimer_posts, text_field = "Combined.Text")
+
+view(corpus_bo)
+print(corpus_bo)
 
 #assigning names to each document
+docid <- paste(barbie_oppenheimer_posts$movie,
+               barbie_oppenheimer_posts$row_number, sep = "_")
+docnames(corpus_bo) <- docid
+print(corpus_bo)
 ```
 
 ```{r}
 # subsetting corpus
+num_doc <- ndoc(corpus_bo)
+print(num_doc)
+head(docvars(corpus_bo))
 
 # extracting document-level variables
 ```
