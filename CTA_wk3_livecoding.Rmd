@@ -16,6 +16,13 @@ library(quanteda)
 library(readtext)
 install.packages("tm")
 library("tm")
+library(tidytext)
+library(stringi) #to generate random text
+library(dplyr) #tidyverse package for wrangling data
+library(ggplot2) #package for visualizing data
+library(scales) #additional package for formatting plot axes
+library(kableExtra) #package for displaying data in html format (relevant for formatting this worksheet mainly)
+install.packages("quanteda")
 ```
 
 ## Data
@@ -76,10 +83,14 @@ barbie_oppenheimer_posts <- barbie_oppenheimer_posts %>%
   mutate(Combined.Text = paste(Post.Title, Post.Text, sep = "-"))
 barbie_oppenheimer_posts <- barbie_oppenheimer_posts %>%
   as.data.frame()
-corpus_bo <- corpus(barbie_oppenheimer_posts, text_field = "Combined.Text")
 
+row.names(barbie_oppenheimer_posts) <- make.names(seq_len(nrow(barbie_oppenheimer_posts)), unique = TRUE)
+docvars_df <- data.frame(Post.Date = barbie_oppenheimer_posts$Post.Date)
+rm(corpus_bo)
+barbie_oppenheimer_posts <- barbie_oppenheimer_posts
+corpus_bo <- corpus(barbie_oppenheimer_posts, 
+                    text_field = "Combined.Text")
 view(corpus_bo)
-print(corpus_bo)
 
 #assigning names to each document
 docid <- paste(barbie_oppenheimer_posts$movie,
@@ -95,6 +106,7 @@ print(num_doc)
 head(docvars(corpus_bo))
 
 # extracting document-level variables
+docvars(corpus_bo, field = "Post.Text")
 ```
 
 ## Tokenisation and cleanup
@@ -103,12 +115,19 @@ head(docvars(corpus_bo))
 # remove punctuation
 # remove stopwords
 # to lower but keep acronyms
+tokens_bo <- tokens(corpus_bo, remove_punct = TRUE)
+tokens_bo <- tokens_remove(tokens_bo, stopwords("en"))
+tokens_bo <- tokens_tolower(tokens_bo, keep_acronyms = TRUE)
+tokens_bo
+  
 ```
 
 ## document-feature matrix
 ```{r}
 # you can also do a lot of text data preprocessing after creating a Dfm, e.g. 
 # and you can use it to select or remove features
+dfm_bo <- dfm(tokens_bo)
+
 ```
 
 ## removing features, introducing Regex
@@ -124,6 +143,9 @@ Look up regex cheatsheet
 
 # dictionary method
 ```{r}
+library(remotes)
+Sys.setenv(GITHUB_PAT = "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")
+remotes::install_github("kbenoit/quanteda.dictionaries")
 library(quanteda.dictionaries)
 ```
 Dictionary creation is done through the `dictionary()` function, which classes a named list of characters as a dictionary.
@@ -131,11 +153,16 @@ Dictionary creation is done through the `dictionary()` function, which classes a
 ## creating your own dictionary
 ```{r}
 # create your own dictionary
+my_dictionary <- dictionary(list(
+  positive = c("good", "happy", "joy", "excellent", "amazing", "love", "best", "favorite", "positive"),
+  negative = c("bad", "sad", "anger", "terrible", "horrible", "complain", "negative")
+))
 ```
 
 The most frequent scenario is when we pass through a dictionary at the time of `dfm()` creation.
 ```{r}
 # dfm with dictionaries
+dfm_sentiment <- dfm_lookup(dfm_bo, dictionary = data_dictionary_LSD2015_pos_neg)
 ```
 
 
@@ -152,18 +179,47 @@ data_dictionary_LSD2015_pos_neg <- data_dictionary_LSD2015[1:2]
 
 ```{r}
 # go back to our barbie/oppenheimer tokenised data
-
-
 # create a document document-feature matrix and group it by day
-
+dfm_bo_grouped <- dfm_group(dfm_bo, groups = docvars(corpus_bo, "Post.Date"))
+print(dfm_bo_grouped)
 
 # prep data + sentiment ratio variable for analysis
-
+dfm_bo_sentiment <- dfm_lookup(dfm_bo, dictionary = data_dictionary_LSD2015_pos_neg)
+sentiment_ratio <- (dfm_bo_sentiment[, "positive"] - dfm_bo_sentiment[, "negative"]) / (dfm_bo_sentiment[, "positive"] + dfm_bo_sentiment[, "negative"])
 
 # basic plot: frequency of positive words
+df_sentiment <- convert(dfm_bo_sentiment, to = "data.frame")
+df_sentiment$Post.Date <- docvars(corpus_bo, "Post.Date")
 
+positive_df <- df_sentiment %>%
+  group_by(Post.Date) %>%
+  summarise(Frequency = sum(positive, na.rm = TRUE))
+
+ggplot(positive_df, aes(x = as.Date(Post.Date), y = Frequency)) +
+  geom_bar(stat = "identity", fill = "red") +
+  xlab("Post Date") +
+  ylab("Frequency of Positive Words") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  
 
 # basic plot: frequency of positive/negative words
+positive_freq <- colSums(dfm_bo_sentiment[, "positive"])
+negative_freq <- colSums(dfm_bo_sentiment[, "negative"])
 
+sentiment_df <- data.frame(
+  Post.Date = names(positive_freq),
+  Positive = positive_freq,
+  Negative = negative_freq
+)
+
+library(tidyr)
+sentiment_long <- pivot_longer(sentiment_df, cols = c("Positive", "Negative"), names_to = "Sentiment", values_to = "Frequency")
+
+ggplot(sentiment_long, aes(x = Post.Date, y = Frequency, fill = Sentiment)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  xlab("Post Date") +
+  ylab("Frequency of Words") +
+  labs(fill = "Sentiment") +
+  theme_minimal()
 ```
 
